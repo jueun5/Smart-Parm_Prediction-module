@@ -1,0 +1,107 @@
+1-1. 생육 기록 테이블
+
+CREATE TABLE IF NOT EXISTS growth_records (
+    growth_id INT AUTO_INCREMENT PRIMARY KEY,
+
+    plant_id INT NOT NULL,
+
+    recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    growth_stage VARCHAR(30),
+
+    plant_height_cm DECIMAL(8,2),
+
+    fruit_count INT,
+
+    average_fruit_size_mm DECIMAL(8,2),
+
+    leaf_status VARCHAR(30),
+
+    notes TEXT,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (plant_id)
+        REFERENCES plants(plant_id),
+
+    INDEX idx_growth_plant_date (
+        plant_id,
+        recorded_at
+    )
+);
+
+각 컬럼 역할
+컬럼	                의미	        예시
+growth_stage	        생육 단계	    FLOWERING
+plant_height_cm	      식물 높이	    85.5
+fruit_count	          열매 개수	    18
+average_fruit_size_mm	평균 열매 크기	25.3
+leaf_status	          잎 상태	      HEALTHY
+notes	                특이사항	      열매 성장 확인
+
+생육 단계는 다음 값으로 관리
+- SEEDLING: 육묘기
+- VEGETATIVE: 생장기
+- FLOWERING: 개화기
+- FRUITING: 착과기
+- RIPENING: 착색 및 숙성기
+- HARVEST: 수확기
+
+1-2. 수확 예측 테이블
+
+CREATE TABLE IF NOT EXISTS harvest_predictions (
+    prediction_id INT AUTO_INCREMENT PRIMARY KEY,
+
+    plant_id INT NOT NULL,
+
+    predicted_date DATE,
+
+    days_remaining INT,
+
+    confidence DECIMAL(5,2),
+
+    prediction_basis TEXT,
+
+    model_version VARCHAR(50),
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (plant_id)
+        REFERENCES plants(plant_id),
+
+    INDEX idx_harvest_plant_date (
+        plant_id,
+        created_at
+    )
+);
+
+1-3. 실제 수확 기록 테이블
+
+CREATE TABLE IF NOT EXISTS harvest_records (
+    harvest_id INT AUTO_INCREMENT PRIMARY KEY,
+
+    plant_id INT NOT NULL,
+
+    harvested_at DATETIME NOT NULL,
+
+    fruit_count INT,
+
+    harvest_weight_g DECIMAL(10,2),
+
+    grade VARCHAR(30),
+
+    notes TEXT,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (plant_id)
+        REFERENCES plants(plant_id),
+
+    INDEX idx_harvest_records_plant (
+        plant_id,
+        harvested_at
+    )
+);
+
+위 SQL은 아직 해당 테이블이 없는 경우를 기준으로 해야 함
+기존 테이블이 이미 있다면 중복 생성하지 말고 실제 컬럼을 비교해 필요한 컬럼만 추가
