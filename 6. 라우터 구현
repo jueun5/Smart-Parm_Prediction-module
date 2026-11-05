@@ -1,0 +1,55 @@
+routes/growth.js 파일 생성
+
+const express = require('express');
+const router = express.Router();
+
+const growthController =
+    require('../controllers/growthController');
+
+// 생육 기록 등록
+router.post(
+    '/record/:plant_id',
+    growthController.createGrowthRecord
+);
+
+// 생육 기록 조회
+router.get(
+    '/record/:plant_id',
+    growthController.getGrowthRecords
+);
+
+// 생육 변화 분석
+router.get(
+    '/analysis/:plant_id',
+    growthController.analyzeGrowth
+);
+
+// AI 이미지 분석 결과를 생육 기록으로 저장
+router.post(
+    '/record-ai/:plant_id',
+    growthController.createGrowthRecordFromAI
+);
+
+// 수확 시기 예측
+router.post(
+    '/predict/:plant_id',
+    growthController.predictHarvest
+);
+
+// 실제 수확 기록 등록
+router.post(
+    '/harvest/:plant_id',
+    growthController.createHarvestRecord
+);
+
+// 실제 수확 기록 조회
+router.get(
+    '/harvest/:plant_id',
+    growthController.getHarvestRecords
+);
+
+module.exports = router;
+
+server.js에 다음 코드 추가
+
+app.use('/api/growth', require('./routes/growth'));
