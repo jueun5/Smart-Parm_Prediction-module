@@ -1,0 +1,12 @@
+기존 smartfarm 프로젝트에 다음 파일 추가
+
+smartfarm/
+├── config/
+│   └── db.js
+├── controllers/
+│   └── growthController.js
+├── routes/
+│   └── growth.js
+├── services/
+│   └── growthService.js
+└── server.js
