@@ -1,0 +1,12 @@
+현재는 사진을 업로드하고 AI 분석을 완료한 다음, 별도의 API를 호출해야 생육 기록이 저장
+이 과정을 자동으로 연결
+
+기존 controllers/imageController.js에서 AI 분석 결과를 ai_analysis 테이블에 저장하는 부분을 찾고, 그 아래에 다음 코드를 추가
+
+const growthService = require('../services/growthService');
+
+// AI 분석 결과 저장 후 생육 기록 생성
+await growthService.createGrowthRecordFromAI(
+    plant_id,
+    imageId
+);
