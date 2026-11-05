@@ -1,0 +1,111 @@
+7-1. 생육 기록 등록
+POST 
+/api/growth/record/1
+
+http://localhost:3000/api/growth/record/1
+
+Body → raw → JSON:
+
+{
+    "growth_stage": "FRUITING",
+    "plant_height_cm": 85.5,
+    "fruit_count": 18,
+    "average_fruit_size_mm": 25.3,
+    "leaf_status": "HEALTHY",
+    "notes": "열매 크기 증가 확인"
+}
+
+응답 예시:
+
+{
+    "success": true,
+    "growth_id": 1,
+    "message": "생육 기록이 저장되었습니다."
+}
+
+7-2. 생육 기록 조회
+GET
+/api/growth/record/1
+
+http://localhost:3000/api/growth/record/1
+
+등록된 생육 기록을 최신순으로 최대 30개 가져옴
+
+7-3. 생육 변화 분석
+GET
+/api/growth/analysis/1
+
+http://localhost:3000/api/growth/analysis/1
+
+두 기록이 다음과 같다고 가정
+측정 항목	    이전 기록	최신 기록
+초장	        80cm	    85.5cm
+열매 수	      15개	    18개
+평균 열매 크기	22mm	    25.3mm
+
+두 기록의 측정 간격이 5일이라면 분석 결과는 다음과 같은 형태
+
+{
+    "success": true,
+    "record_count": 2,
+    "analysis": {
+        "days_difference": 5,
+        "height_change_cm": 5.5,
+        "daily_height_growth_cm": 1.1,
+        "fruit_count_change": 3,
+        "fruit_size_change_mm": 3.3,
+        "daily_fruit_size_growth_mm": 0.66,
+        "current_growth_stage": "FRUITING",
+        "current_leaf_status": "HEALTHY"
+    }
+}
+
+7-4. AI 분석 결과를 생육 기록으로 저장
+POST
+/api/growth/record-ai/1
+
+http://localhost:3000/api/growth/record-ai/1
+
+Body:
+
+{
+    "image_id": 1
+}
+
+앞서 만든 이미지 분석 모듈에서 저장된 AI 분석 결과를 조회한 후 생육 기록에 저장
+
+7-5. 수확 시기 예측
+POST
+/api/growth/predict/1
+
+http://localhost:3000/api/growth/predict/1
+
+예를 들어 최신 AI 분석 결과의 숙도 상태가 TURNING이면 초기 설정상 7일 뒤를 예상 수확일로 저장
+
+{
+    "success": true,
+    "prediction": {
+        "plant_id": 1,
+        "maturity": "TURNING",
+        "predicted_date": "2026-11-11",
+        "days_remaining": 7,
+        "confidence": 80,
+        "model_version": "rule-based-v1"
+    }
+}
+
+7-6. 실제 수확 기록 등록
+POST
+/api/growth/harvest/1
+
+http://localhost:3000/api/growth/harvest/1
+
+Body:
+
+{
+    "harvested_at": "2026-11-11 10:30:00",
+    "fruit_count": 20,
+    "harvest_weight_g": 850,
+    "grade": "A",
+    "notes": "첫 번째 수확"
+}
