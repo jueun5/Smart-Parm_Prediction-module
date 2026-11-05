@@ -1,0 +1,240 @@
+services/growthService.js 파일 생성
+
+생육 기록을 조회하고, 이전 기록과 비교해 성장량 계산
+
+const db = require('../config/db');
+
+// 생육 기록 저장
+async function saveGrowthRecord(data) {
+    const {
+        plant_id,
+        growth_stage,
+        plant_height_cm,
+        fruit_count,
+        average_fruit_size_mm,
+        leaf_status,
+        notes
+    } = data;
+
+    const [result] = await db.execute(
+        `INSERT INTO growth_records (
+            plant_id,
+            growth_stage,
+            plant_height_cm,
+            fruit_count,
+            average_fruit_size_mm,
+            leaf_status,
+            notes,
+            recorded_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [
+            plant_id,
+            growth_stage || null,
+            plant_height_cm ?? null,
+            fruit_count ?? null,
+            average_fruit_size_mm ?? null,
+            leaf_status || null,
+            notes || null
+        ]
+    );
+
+    return result.insertId;
+}
+
+
+// 최근 생육 기록 조회
+async function getGrowthRecords(plantId, limit = 30) {
+    const [rows] = await db.execute(
+        `SELECT *
+         FROM growth_records
+         WHERE plant_id = ?
+         ORDER BY recorded_at DESC
+         LIMIT ?`,
+        [plantId, limit]
+    );
+
+    return rows;
+}
+
+
+// 생육 변화 분석
+async function analyzeGrowth(plantId) {
+
+    // 최근 기록 2개 이상 조회
+    const records = await getGrowthRecords(plantId, 30);
+
+    if (records.length < 2) {
+        return {
+            success: true,
+            message: '생육 변화 분석을 위해서는 최소 2개의 기록이 필요합니다.',
+            record_count: records.length,
+            analysis: null
+        };
+    }
+
+    // 최신순 정렬이므로 첫 번째가 최신 기록
+    const latest = records[0];
+    const previous = records[1];
+
+    // 날짜 차이 계산
+    const latestDate = new Date(latest.recorded_at);
+    const previousDate = new Date(previous.recorded_at);
+
+    const daysDifference = Math.max(
+        1,
+        Math.round(
+            (latestDate - previousDate) /
+            (1000 * 60 * 60 * 24)
+        )
+    );
+
+    // 숫자 변환
+    const currentHeight = Number(latest.plant_height_cm);
+    const previousHeight = Number(previous.plant_height_cm);
+
+    const currentFruitCount = Number(latest.fruit_count);
+    const previousFruitCount = Number(previous.fruit_count);
+
+    const currentSize = Number(latest.average_fruit_size_mm);
+    const previousSize = Number(previous.average_fruit_size_mm);
+
+    // 변화량 계산
+    const heightChange =
+        Number.isFinite(currentHeight) &&
+        Number.isFinite(previousHeight)
+            ? currentHeight - previousHeight
+            : null;
+
+    const fruitCountChange =
+        Number.isFinite(currentFruitCount) &&
+        Number.isFinite(previousFruitCount)
+            ? currentFruitCount - previousFruitCount
+            : null;
+
+    const fruitSizeChange =
+        Number.isFinite(currentSize) &&
+        Number.isFinite(previousSize)
+            ? currentSize - previousSize
+            : null;
+
+    // 하루 평균 성장량
+    const dailyHeightGrowth =
+        heightChange === null
+            ? null
+            : Number((heightChange / daysDifference).toFixed(2));
+
+    const dailyFruitSizeGrowth =
+        fruitSizeChange === null
+            ? null
+            : Number((fruitSizeChange / daysDifference).toFixed(2));
+
+    return {
+        success: true,
+        record_count: records.length,
+        analysis: {
+            latest_recorded_at: latest.recorded_at,
+            previous_recorded_at: previous.recorded_at,
+            days_difference: daysDifference,
+
+            height_change_cm: heightChange,
+            daily_height_growth_cm: dailyHeightGrowth,
+
+            fruit_count_change: fruitCountChange,
+
+            fruit_size_change_mm: fruitSizeChange,
+            daily_fruit_size_growth_mm: dailyFruitSizeGrowth,
+
+            current_growth_stage: latest.growth_stage,
+            current_leaf_status: latest.leaf_status
+        }
+    };
+}
+
+
+// AI 분석 결과를 생육 기록으로 저장
+async function createGrowthRecordFromAI(plantId, imageId) {
+
+    const [rows] = await db.execute(
+        `SELECT
+            a.leaf_status,
+            a.fruit_maturity,
+            a.growth_metrics,
+            a.analyzed_at
+         FROM ai_analysis a
+         JOIN plant_images i
+            ON a.image_id = i.image_id
+         WHERE a.image_id = ?
+         AND i.plant_id = ?
+         ORDER BY a.analyzed_at DESC
+         LIMIT 1`,
+        [imageId, plantId]
+    );
+
+    if (rows.length === 0) {
+        throw new Error('해당 사진의 AI 분석 결과가 없습니다.');
+    }
+
+    const analysis = rows[0];
+
+    let metrics = analysis.growth_metrics;
+
+    if (typeof metrics === 'string') {
+        metrics = JSON.parse(metrics);
+    }
+
+    metrics = metrics || {};
+
+    // AI 결과의 숙도에 따라 생육 단계 분류
+    const maturity = analysis.fruit_maturity;
+
+    let growthStage = 'VEGETATIVE';
+
+    if (maturity === 'GREEN') {
+        growthStage = 'FRUITING';
+    } else if (
+        maturity === 'TURNING' ||
+        maturity === 'RED'
+    ) {
+        growthStage = 'RIPENING';
+    }
+
+    // AI가 추정한 열매 개수 및 평균 크기
+    const fruitCount =
+        metrics.estimated_fruit_count ?? null;
+
+    const averageSize =
+        metrics.estimated_average_fruit_size_mm ?? null;
+
+    const [result] = await db.execute(
+        `INSERT INTO growth_records (
+            plant_id,
+            growth_stage,
+            fruit_count,
+            average_fruit_size_mm,
+            leaf_status,
+            notes,
+            recorded_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+            plantId,
+            growthStage,
+            fruitCount,
+            averageSize,
+            analysis.leaf_status,
+            'AI 이미지 분석 결과를 이용한 생육 기록',
+            analysis.analyzed_at
+        ]
+    );
+
+    return result.insertId;
+}
+
+
+module.exports = {
+    saveGrowthRecord,
+    getGrowthRecords,
+    analyzeGrowth,
+    createGrowthRecordFromAI
+};
